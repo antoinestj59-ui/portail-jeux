@@ -1,0 +1,17 @@
+{
+  "name": "mon-portail-jeux",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js && node --check public/arcade-sdk.js && node --check scripts/migrate-from-live.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5",
+    "@supabase/supabase-js": "^2.57.4",
+    "dotenv": "^16.4.7"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

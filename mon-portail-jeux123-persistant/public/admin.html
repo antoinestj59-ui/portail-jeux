@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Administration — Master Hub</title>
+  <style>
+    body{margin:0;font-family:Inter,system-ui,sans-serif;background:#08131d;color:#e8f4fc;padding:14px}
+    .card{background:#0e2336;border:1px solid #1a3c5a;border-radius:16px;padding:16px;max-width:1150px;margin:0 auto 18px}
+    h2{margin:0 0 12px;color:#5ffff6;font-size:17px}
+    h3{margin:14px 0 8px;font-size:14px;color:#ffc942}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{padding:8px;text-align:left;border-bottom:1px solid #173854;font-size:11.5px}
+    th{background:#13324d;color:#5ffff6}
+    input,select,textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #28547c;background:#050f17;color:#fff;font-size:12px;box-sizing:border-box;margin-bottom:8px}
+    .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+    button{padding:7px 12px;border-radius:8px;border:0;background:#1e5b87;color:#fff;font-weight:bold;cursor:pointer;font-size:11.5px}
+    button.primary{background:#23c4a2;color:#032924}
+    button.danger{background:#9e2a36}
+    button.warning{background:#f5a822;color:#331d04}
+    .ip-tag{font-family:monospace;background:#050f17;padding:2px 5px;border-radius:4px;color:#7efaf0}
+    .alert-error{background:#5a181d;border:1px solid #ff7a85;color:#ffd1d5;padding:8px 12px;border-radius:8px;margin-top:10px;font-size:12px;display:none}
+    @media(max-width:600px){th,td{padding:6px 4px;font-size:10.5px}}
+    /* Refonte visuelle discrète : profondeur, verre sombre et focus accessibles. */
+    :root{color-scheme:dark;--admin-accent:#5ffff6;--admin-border:rgba(95,255,246,.18)}
+    body{min-height:100vh;position:relative;isolation:isolate;background-image:radial-gradient(ellipse at 8% 0%,rgba(34,211,238,.12),transparent 34%),radial-gradient(ellipse at 96% 18%,rgba(59,130,246,.10),transparent 30%),linear-gradient(180deg,#08131d,#050b13)}
+    body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.12;background-image:linear-gradient(rgba(95,255,246,.1) 1px,transparent 1px),linear-gradient(90deg,rgba(95,255,246,.1) 1px,transparent 1px);background-size:42px 42px;mask-image:linear-gradient(to bottom,black,transparent 78%)}
+    .card{position:relative;isolation:isolate;background:linear-gradient(145deg,rgba(14,35,54,.96),rgba(7,21,34,.97));border-color:var(--admin-border);box-shadow:0 12px 30px rgba(0,0,0,.18),inset 0 1px rgba(255,255,255,.035);transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}
+    .card::before{content:"";position:absolute;left:7%;right:7%;top:0;height:1px;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(95,255,246,.5),transparent)}
+    .card:hover{border-color:rgba(95,255,246,.32);box-shadow:0 17px 36px rgba(0,0,0,.23),0 0 24px rgba(95,255,246,.025),inset 0 1px rgba(255,255,255,.045)}
+    h2{text-shadow:0 0 18px rgba(95,255,246,.10);letter-spacing:.01em}
+    button{transition:transform .16s ease,filter .16s ease,box-shadow .16s ease;border:1px solid rgba(200,235,255,.08)}
+    button:hover{filter:brightness(1.1);transform:translateY(-1px);box-shadow:0 6px 15px rgba(0,0,0,.20)}
+    input:focus,select:focus,textarea:focus{outline:2px solid rgba(95,255,246,.55);outline-offset:1px;border-color:#5ffff6}
+    @media(hover:none),(prefers-reduced-motion:reduce){.card:hover,button:hover{transform:none;box-shadow:inherit}}
+    @media(prefers-reduced-motion:reduce){.card,button{transition:none}}
+  </style>
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+  <!-- Authentification administrateur via ADMIN_PASSWORD configuré côté serveur -->
+  <div class="card" id="login-box" style="max-width:380px;text-align:center;margin-top:60px">
+    <h2>Accès Modérateur Master</h2>
+    <input type="password" id="pass" placeholder="Mot de passe admin" onkeydown="if(event.key==='Enter') login()">
+    <button class="primary" id="btn-login" onclick="login()" style="width:100%">Se Connecter</button>
+    <div id="login-error" class="alert-error"></div>
+  </div>
+
+  <div id="admin-panel" style="display:none">
+    
+    <div style="max-width:1150px;margin:0 auto 12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <span style="font-size:12px;color:#8ab2cc">🟢 Master Admin Connecté (Live Sync Active)</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="primary" onclick="downloadBackup()">💾 Backup</button>
+        <button class="warning" onclick="document.getElementById('restore-file').click()">🔄 Restaurer</button>
+        <input type="file" id="restore-file" accept=".json" style="display:none" onchange="uploadBackup(event)">
+        <button onclick="purgeInactive()" style="background:#543869">🧹 Purger Inactifs</button>
+        <button onclick="logout()" style="background:#274359">Quitter</button>
+      </div>
+    </div>
+
+    <!-- PERSONNALISATION DU TITRE, LOGO ET COULEUR -->
+    <div class="card">
+      <h2>🎨 Personnalisation du Portail (Titre & Visuel)</h2>
+      <div class="form-grid">
+        <div><label>Titre Principal :</label><input type="text" id="site-title" placeholder="PORTAIL ARCADE 3D"></div>
+        <div><label>Couleur Néon :</label><input type="color" id="site-color" value="#5ffff6" style="height:35px;cursor:pointer"></div>
+        <div><label>URL Logo / Bannière (Image) :</label><input type="text" id="site-logo" placeholder="https://... logo.png"></div>
+      </div>
+      <button class="primary" onclick="savePortalBranding()">Mettre à jour l'Identité Visuelle</button>
+    </div>
+
+    <!-- ALERTE BROADCAST POPUP (MESSAGE EN DIRECT) -->
+    <div class="card">
+      <h2>🚨 Message d'Alerte en Direct (Broadcast Pop-up)</h2>
+      <p style="font-size:11.5px;color:#8eb1c7;margin-top:-6px">Surgit instantanément sur les écrans de tous les joueurs, sur l'accueil ou en plein jeu.</p>
+      <div style="display:flex;gap:6px">
+        <input type="text" id="broadcast-msg" placeholder="Ex: Redémarrage du serveur dans 5 minutes !" style="flex:1">
+        <button class="warning" onclick="sendBroadcast()" style="white-space:nowrap">Diffuser à Tous</button>
+      </div>
+    </div>
+
+    <!-- DÉFI DE LA SEMAINE -->
+    <div class="card">
+      <h2>🏆 Défi Hebdomadaire Automatique</h2>
+      <div class="form-grid">
+        <div><label>Titre Défi :</label><input type="text" id="wk-title" value="Défi de la Semaine"></div>
+        <div>
+          <label>Jeu Concerné :</label>
+          <select id="wk-game-select"></select>
+        </div>
+        <div><label>Score Cible :</label><input type="number" id="wk-score" value="500"></div>
+        <div><label>Récompense XP :</label><input type="number" id="wk-xp" value="300"></div>
+      </div>
+      <label><input type="checkbox" id="wk-active" style="width:auto"> Activer le Défi</label>
+      <button class="primary" onclick="saveWeeklyChallenge()" style="margin-left:10px">Enregistrer le Défi</button>
+    </div>
+
+    <!-- GESTION DES JEUX -->
+    <div class="card">
+      <h2 id="form-game-title">🎮 Ajouter ou Modifier un Jeu</h2>
+      <input type="hidden" id="edit-game-id">
+      
+      <div class="form-grid">
+        <div><label>Titre :</label><input type="text" id="g-title" placeholder="Ex: Course 3D"></div>
+        <div><label>Émoji :</label><input type="text" id="g-icon" placeholder="🏎️"></div>
+        <div><label>Miniature Image (URL) :</label><input type="text" id="g-thumb"></div>
+        <div>
+          <label>Catégorie :</label>
+          <select id="g-cat">
+            <option value="Action">Action</option>
+            <option value="Course">Course</option>
+            <option value="Multijoueur">Multijoueur</option>
+            <option value="Arcade">Arcade</option>
+            <option value="Réflexion">Réflexion</option>
+          </select>
+        </div>
+        <div>
+          <label>Statut :</label>
+          <select id="g-status">
+            <option value="playable">Jouable</option>
+            <option value="paused">En pause</option>
+            <option value="upcoming">Chantier (À venir)</option>
+          </select>
+        </div>
+      </div>
+
+      <div><label>Description :</label><textarea id="g-desc" rows="2"></textarea></div>
+
+      <div style="background:#071a28;border:1px solid #236078;border-radius:10px;padding:10px;margin-bottom:10px;font-size:11px;color:#b9d8e8;line-height:1.55">
+        <strong style="color:#5ffff6">💾 Sauvegarde Arcade intégrée automatiquement</strong><br>
+        Chaque HTML importé reçoit au début du head le SDK et son identifiant. Sauvegarde : <code>await Arcade.save({ score, level })</code>. Restauration, dans une fonction async : <code>const save = await Arcade.load()</code>. Appelle ces fonctions au moment où le jeu connaît le score ou l'état à conserver ; le portail ne peut pas deviner les variables internes d'un jeu.
+      </div>
+      <div style="border:2px dashed #23c4a2;border-radius:10px;padding:10px;text-align:center;background:#050e17;margin-bottom:8px">
+        <label style="color:#5ffff6;font-weight:bold;font-size:12px">📂 Fichier HTML (.html) du jeu :</label>
+        <input type="file" id="g-file" accept=".html,.htm" style="margin:0">
+      </div>
+
+      <div><label>Ou Lien Manuel / URL :</label><input type="text" id="g-url"></div>
+
+      <div style="display:flex;gap:8px">
+        <button class="primary" id="btn-save-game" onclick="saveGameReliable()">+ Enregistrer le Jeu</button>
+        <button id="btn-cancel-edit" onclick="cancelEdit()" style="display:none;background:#4a6572">Annuler</button>
+      </div>
+
+      <h3>Catalogue des Jeux</h3>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Ordre</th><th>Visuel</th><th>Titre</th><th>Catégorie</th><th>Statut</th><th>Votes</th><th>Parties</th><th>Actions</th></tr></thead>
+          <tbody id="games-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- GESTION DE LA MUSIQUE -->
+    <div class="card">
+      <h2>🎵 Importer de la Musique</h2>
+      <div class="form-grid">
+        <div><label>Titre :</label><input type="text" id="m-title" placeholder="Synthwave Track"></div>
+        <div><label>Artiste :</label><input type="text" id="m-artist" placeholder="Artiste"></div>
+      </div>
+      <div style="border:2px dashed #3b82f6;border-radius:10px;padding:10px;text-align:center;background:#050e17;margin-bottom:8px">
+        <label style="color:#60a5fa;font-weight:bold;font-size:12px">🎧 Fichier Audio (.mp3, .wav) :</label>
+        <input type="file" id="m-file" accept="audio/*" style="margin:0">
+      </div>
+      <div><label>Ou Lien Audio Externe (.mp3) :</label><input type="text" id="m-url"></div>
+      <button class="primary" id="btn-save-music" onclick="uploadMusic()">+ Ajouter Morceau</button>
+
+      <h3>Playlist Actuelle</h3>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Titre</th><th>Artiste</th><th>Lien</th><th>Action</th></tr></thead>
+          <tbody id="music-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- BASE DES JOUEURS : GEL & DONS DE RESSOURCES -->
+    <div class="card">
+      <h2>👥 Base Joueurs : Geler (Freeze) & Donner des Ressources</h2>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>IP</th><th>Pseudo</th><th>Niveau</th><th>Actions</th></tr></thead>
+          <tbody id="players-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- MAINTENANCE -->
+    <div class="card">
+      <h2>🛠️ Maintenance</h2>
+      <div class="form-grid">
+        <div><input type="text" id="maint-msg" placeholder="Message maintenance"></div>
+        <div><input type="text" id="maint-key" placeholder="Clé testeur (ex: TEST-777)"></div>
+      </div>
+      <label><input type="checkbox" id="maint-active" style="width:auto"> Activer Maintenance</label>
+      <button class="primary" style="margin-left:10px" onclick="saveMaintenance()">Sauvegarder</button>
+    </div>
+
+  </div>
+
+  <script>
+    const socket = io();
+    let currentToken = null;
+    let cachedGames = [];
+    let cachedPlaylist = [];
+
+    async function login(){
+      const val = document.getElementById('pass').value.trim();
+      const btn = document.getElementById('btn-login');
+      const errBox = document.getElementById('login-error');
+
+      if (!val) return;
+      btn.disabled = true; btn.textContent = "⏳ Connexion...";
+      errBox.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pass: val })
+        });
+        const data = await res.json();
+        if (data.success) {
+          acceptAdminSession(data, data.token);
+          document.getElementById('pass').value = '';
+        } else {
+          errBox.textContent = data.message;
+          errBox.style.display = 'block';
+        }
+      } catch(e) {
+        errBox.textContent = "Serveur en réveil... Réessayez dans 10 secondes.";
+        errBox.style.display = 'block';
+      } finally {
+        btn.disabled = false; btn.textContent = "Se Connecter";
+      }
+    }
+
+    function logout(){
+      sessionStorage.removeItem('admin_token');
+      location.reload();
+    }
+
+    function acceptAdminSession(data, token){
+      currentToken = token;
+      sessionStorage.setItem('admin_token', token);
+      document.getElementById('login-box').style.display = 'none';
+      document.getElementById('admin-panel').style.display = 'block';
+      cachedGames = data.games || [];
+      cachedPlaylist = data.playlist || [];
+      updateDashboard(data);
+      socket.emit('admin:bind_token', token);
+    }
+
+    async function restoreAdminSession(){
+      const token = sessionStorage.getItem('admin_token');
+      if (!token) return;
+      try {
+        const res = await fetch('/api/admin/session', { headers: { 'Authorization': token }, cache: 'no-store' });
+        const data = await res.json();
+        if (res.ok && data.success) acceptAdminSession(data, token);
+        else sessionStorage.removeItem('admin_token');
+      } catch (_) { /* Le formulaire reste disponible si le serveur est encore endormi. */ }
+    }
+    restoreAdminSession();
+
+    function updateDashboard(res){
+      cachedGames = res.games || [];
+      cachedPlaylist = res.playlist || [];
+      renderGamesTable(res.games);
+      renderMusicTable(res.playlist);
+      renderPlayersTable(res.allPlayers);
+
+      if (res.portalSettings) {
+        document.getElementById('site-title').value = res.portalSettings.title || '';
+        document.getElementById('site-color').value = res.portalSettings.neonColor || '#5ffff6';
+        document.getElementById('site-logo').value = res.portalSettings.logoUrl || '';
+      }
+
+      if (res.weeklyChallenge) {
+        document.getElementById('wk-title').value = res.weeklyChallenge.title || '';
+        document.getElementById('wk-score').value = res.weeklyChallenge.targetScore || 500;
+        document.getElementById('wk-xp').value = res.weeklyChallenge.rewardXp || 300;
+        document.getElementById('wk-active').checked = !!res.weeklyChallenge.active;
+        renderWeeklyGameSelect(res.games, res.weeklyChallenge.gameId);
+      }
+
+      if (res.maintenance) {
+        document.getElementById('maint-msg').value = res.maintenance.message || '';
+        document.getElementById('maint-key').value = res.maintenance.bypassKey || 'TEST-777';
+        document.getElementById('maint-active').checked = !!res.maintenance.active;
+      }
+    }
+
+    async function savePortalBranding(){
+      const title = document.getElementById('site-title').value.trim();
+      const neonColor = document.getElementById('site-color').value;
+      const logoUrl = document.getElementById('site-logo').value.trim();
+
+      await fetch('/api/admin/portal-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': currentToken },
+        body: JSON.stringify({ title, neonColor, logoUrl })
+      });
+      alert("Identité visuelle mise à jour !");
+    }
+
+    async function sendBroadcast(){
+      const msg = document.getElementById('broadcast-msg').value.trim();
+      if (!msg) return;
+      await fetch('/api/admin/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': currentToken },
+        body: JSON.stringify({ message: msg })
+      });
+      document.getElementById('broadcast-msg').value = '';
+      alert("Alerte diffusée à tous les joueurs !");
+    }
+
+    function renderWeeklyGameSelect(games, currentId){
+      const sel = document.getElementById('wk-game-select');
+      sel.innerHTML = '<option value="">Choisir le jeu cible...</option>';
+      (games || []).filter(g=>g.status==='playable').forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g.id; opt.textContent = g.title;
+        if (g.id === currentId) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+
+    async function saveWeeklyChallenge(){
+      const title = document.getElementById('wk-title').value.trim();
+      const gameId = document.getElementById('wk-game-select').value;
+      const targetScore = Number(document.getElementById('wk-score').value) || 500;
+      const rewardXp = Number(document.getElementById('wk-xp').value) || 300;
+      const active = document.getElementById('wk-active').checked;
+
+      await fetch('/api/admin/weekly-challenge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': currentToken },
+        body: JSON.stringify({ title, gameId, targetScore, rewardXp, active })
+      });
+      alert("Défi hebdomadaire enregistré !");
+    }
+
+    async function saveGameReliable(){
+      const editId = document.getElementById('edit-game-id').value;
+      const title = document.getElementById('g-title').value.trim();
+      const desc = document.getElementById('g-desc').value.trim();
+      const icon = document.getElementById('g-icon').value.trim() || '🎮';
+      const thumb = document.getElementById('g-thumb').value.trim();
+      const cat = document.getElementById('g-cat').value;
+      const status = document.getElementById('g-status').value;
+      const url = document.getElementById('g-url').value.trim();
+      const fileInput = document.getElementById('g-file');
+      const btn = document.getElementById('btn-save-game');
+
+      if (!title) return alert("Titre requis !");
+      btn.disabled = true; btn.textContent = "⏳ Enregistrement...";
+
+      let fileContent = null;
+      if (fileInput.files && fileInput.files[0]) {
+        fileContent = await fileInput.files[0].text();
+      }
+
+      try {
+        const res = await fetch('/api/admin/games/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': currentToken },
+          body: JSON.stringify({ id: editId || null, title, description: desc, icon, thumbnail: thumb, category: cat, status, url, fileContent })
+        });
+        const data = await res.json();
+        if (data.success) {
+          cachedGames = data.games;
+          renderGamesTable(data.games);
+          cancelEdit();
+        } else alert("Erreur: " + data.message);
+      } catch(e) {
+        alert("Erreur réseau.");
+      } finally {
+        btn.disabled = false; btn.textContent = editId ? "Sauvegarder" : "+ Enregistrer le Jeu";
+      }
+    }
+
+    function editGame(id){
+      const g = cachedGames.find(x => x.id === id);
+      if (!g) return;
+      document.getElementById('edit-game-id').value = g.id;
+      document.getElementById('g-title').value = g.title;
+      document.getElementById('g-desc').value = g.description;
+      document.getElementById('g-icon').value = g.icon;
+      document.getElementById('g-thumb').value = g.thumbnail || '';
+      document.getElementById('g-cat').value = g.category || 'Action';
+      document.getElementById('g-status').value = g.status || 'playable';
+      document.getElementById('g-url').value = g.url;
+      document.getElementById('btn-save-game').textContent = "Sauvegarder";
+      document.getElementById('btn-cancel-edit').style.display = 'inline-block';
+    }
+
+    function cancelEdit(){
+      document.getElementById('edit-game-id').value = '';
+      document.getElementById('btn-save-game').textContent = "+ Enregistrer le Jeu";
+      document.getElementById('btn-cancel-edit').style.display = 'none';
+      document.getElementById('g-title').value = '';
+      document.getElementById('g-desc').value = '';
+      document.getElementById('g-thumb').value = '';
+      document.getElementById('g-url').value = '';
+      document.getElementById('g-file').value = '';
+    }
+
+    async function reorder(gameId, direction){
+      try {
+        const res = await fetch('/api/admin/games/reorder', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': currentToken },
+          body: JSON.stringify({ gameId, direction })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) return alert(data.message || 'Impossible de changer l’ordre du jeu.');
+        cachedGames = data.games; renderGamesTable(data.games);
+      } catch (_) { alert('Serveur inaccessible. Réessaie.'); }
+    }
+
+    function renderGamesTable(games){
+      const tb = document.getElementById('games-table');
+      tb.innerHTML = '';
+      (games || []).forEach(g => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><button onclick="reorder('${g.id}','up')">▲</button> <button onclick="reorder('${g.id}','down')">▼</button></td>
+          <td>${g.icon}</td>
+          <td><strong>${g.title}</strong></td>
+          <td>${g.category}</td>
+          <td>${g.status}</td>
+          <td>${g.votes || 0}</td>
+          <td>${g.plays || 0}</td>
+          <td>
+            <button onclick="editGame('${g.id}')">✏️</button>
+            <button class="warning" onclick="socket.emit('admin:toggle_game_pause', '${g.id}')">⏸️</button>
+            <button class="danger" onclick="if(confirm('Supprimer ?')) socket.emit('admin:delete_game', '${g.id}')">🗑️</button>
+          </td>
+        `;
+        tb.appendChild(tr);
+      });
+    }
+
+    async function uploadMusic(){
+      const title = document.getElementById('m-title').value.trim();
+      const artist = document.getElementById('m-artist').value.trim();
+      const manualUrl = document.getElementById('m-url').value.trim();
+      const fileInput = document.getElementById('m-file');
+      const btn = document.getElementById('btn-save-music');
+
+      if (!title) return alert("Indiquez le titre !");
+      btn.disabled = true; btn.textContent = "⏳ Upload audio...";
+
+      let fileContent = null;
+      if (fileInput.files && fileInput.files[0]) {
+        fileContent = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.readAsDataURL(fileInput.files[0]);
+        });
+      }
+
+      try {
+        const res = await fetch('/api/admin/music/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': currentToken },
+          body: JSON.stringify({ title, artist, fileContent, url: manualUrl })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.message || 'La musique n’a pas pu être enregistrée.');
+        cachedPlaylist = data.playlist;
+        renderMusicTable(data.playlist);
+        document.getElementById('m-title').value = '';
+        document.getElementById('m-file').value = '';
+        alert("Morceau ajouté !");
+      } catch(e) { alert(e.message || "Erreur upload."); }
+      finally { btn.disabled = false; btn.textContent = "+ Ajouter Morceau"; }
+    }
+
+    async function deleteMusic(id){
+      if (!confirm("Supprimer ?")) return;
+      const res = await fetch('/api/admin/music/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': currentToken },
+        body: JSON.stringify({ id })
+      });
+      const data = await res.json();
+      if (data.success) renderMusicTable(data.playlist);
+    }
+
+    function renderMusicTable(list){
+      const tb = document.getElementById('music-table');
+      tb.innerHTML = (list || []).map(t => `
+        <tr>
+          <td><strong>${t.title}</strong></td>
+          <td>${t.artist}</td>
+          <td><audio src="${t.url}" controls style="height:25px"></audio></td>
+          <td><button class="danger" onclick="deleteMusic('${t.id}')">🗑️</button></td>
+        </tr>
+      `).join('');
+    }
+
+    function renderPlayersTable(players){
+      const tb = document.getElementById('players-table');
+      tb.innerHTML = '';
+      for (const name in players) {
+        const p = players[name];
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><span class="ip-tag">${p.ip}</span></td>
+          <td><strong>${p.username}</strong></td>
+          <td>Niv. ${p.level || 1}</td>
+          <td>
+            <button class="primary" onclick="giveRewards('${p.username}')">🎁 Donner</button>
+            <button class="warning" onclick="toggleFreeze('${p.ip}', true)">❄️ Geler</button>
+            <button onclick="toggleFreeze('${p.ip}', false)">☀️ Dégeler</button>
+            <button class="danger" onclick="if(confirm('Bannir ?')) socket.emit('admin:ban_ip', '${p.ip}')">Bannir</button>
+          </td>
+        `;
+        tb.appendChild(tr);
+      }
+    }
+
+    async function toggleFreeze(ip, freeze){
+      await fetch('/api/admin/freeze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': currentToken },
+        body: JSON.stringify({ ip, freeze })
+      });
+      alert(freeze ? "Joueur gelé en direct !" : "Joueur dégelé !");
+    }
+
+    async function giveRewards(username){
+      const xp = prompt("XP à donner :", "500");
+      if (!xp) return;
+      await fetch('/api/admin/give-rewards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': currentToken },
+        body: JSON.stringify({ username, xp: Number(xp) })
+      });
+      alert("Ressources attribuées !");
+    }
+
+    function saveMaintenance(){
+      socket.emit('admin:set_maintenance', {
+        active: document.getElementById('maint-active').checked,
+        message: document.getElementById('maint-msg').value,
+        bypassKey: document.getElementById('maint-key').value
+      });
+    }
+
+    function downloadBackup(){
+      window.open('/api/admin/backup?token=' + encodeURIComponent(currentToken), '_blank');
+    }
+
+    function uploadBackup(e){
+      const file = e.target.files[0];
+      if (!file || !confirm("Restaurer et écraser la base ?")) return;
+      const reader = new FileReader();
+      reader.onload = function(evt){
+        try { socket.emit('admin:restore_backup', JSON.parse(evt.target.result)); }
+        catch(err){ alert("JSON invalide"); }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    }
+
+    function purgeInactive(){
+      const days = prompt("Purger les comptes inactifs depuis combien de jours ?", "30");
+      if (days && !isNaN(days)) socket.emit('admin:purge_inactive', Number(days));
+    }
+  </script>
+</body>
+</html>

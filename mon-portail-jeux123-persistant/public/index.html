@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Portail Arcade — Jeux 3D</title>
+  <style>
+    :root{
+      --primary:#5ffff6;
+      --secondary:#23c4a2;
+      --gold:#ffd866;
+      --bg:#06111c;
+      --card:#0c2132;
+    }
+    body.theme-synthwave{--primary:#f368e0;--secondary:#ff9f43;--bg:#12072b;--card:#241142}
+    body.theme-matrix{--primary:#2ed573;--secondary:#7bed9f;--bg:#041407;--card:#0b2e12}
+    body.theme-gold{--primary:#ffd866;--secondary:#f5a822;--bg:#141006;--card:#291e08}
+    body.mode-eco *{box-shadow:none!important;text-shadow:none!important;backdrop-filter:none!important;transition:none!important}
+
+    body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:#fff;padding:14px;padding-bottom:70px;transition:background .3s}
+    header{text-align:center;padding:8px 0 14px}
+    h1{font-size:clamp(22px,5vw,36px);margin:0 0 4px;color:var(--primary);letter-spacing:-.02em}
+    .portal-logo-img{max-height:60px;margin-bottom:6px}
+    p{color:#8eaec4;margin:0;font-size:12.5px}
+
+    .announcement-bar{max-width:1050px;margin:0 auto 10px;padding:10px 14px;border-radius:12px;background:#153d5a;border:1px solid #367ea8;color:#d5f3ff;font-size:12px;font-weight:bold;display:none;align-items:center;gap:8px}
+    .event-bar{max-width:1050px;margin:0 auto 10px;padding:10px 14px;border-radius:12px;background:linear-gradient(90deg,#ffd866,#f5a822);color:#331d04;font-size:12.5px;font-weight:900;display:none;align-items:center;justify-content:center;gap:8px}
+
+    .profile-card-container{perspective:1000px;max-width:1050px;margin:0 auto 14px}
+    .profile-card{background:var(--card);border:2px solid var(--secondary);border-radius:16px;padding:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;transform-style:preserve-3d;transition:transform 0.1s ease-out,border-color .3s}
+    .profile-card.frame-gold{border-color:#ffd866;box-shadow:0 0 16px rgba(255,216,102,.4)}
+    .profile-card.frame-neon{border-color:#5ffff6;box-shadow:0 0 16px rgba(95,255,246,.4)}
+    .profile-card.frame-flame{border-color:#ff4757;box-shadow:0 0 16px rgba(255,71,87,.4)}
+
+    .level-badge{background:var(--secondary);color:#032924;padding:3px 8px;border-radius:99px;font-weight:900;font-size:11px}
+    .xp-bar{width:120px;height:6px;background:#05101a;border-radius:99px;overflow:hidden;margin-top:4px}
+    .xp-fill{height:100%;background:var(--primary);width:0%}
+
+    .weekly-box{max-width:1050px;margin:0 auto 14px;background:linear-gradient(90deg,#1c1b33,#0c2336);border:1.5px solid #a855f7;border-radius:14px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+    .resume-card{max-width:1050px;margin:0 auto 14px;background:#0d3347;border:1.5px dashed var(--primary);border-radius:14px;padding:10px 14px;display:none;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+
+    .action-row{max-width:1050px;margin:0 auto 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+    .btn-action{padding:7px 12px;border-radius:10px;border:0;font-weight:900;cursor:pointer;font-size:11.5px;display:inline-flex;align-items:center;gap:6px}
+
+    .category-tabs{max-width:1050px;margin:12px auto;display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}
+    .tab-btn{padding:6px 12px;border-radius:20px;border:1px solid #1c3c58;background:#0b1d2e;color:#a0c0d4;font-weight:bold;cursor:pointer;white-space:nowrap;font-size:11.5px}
+    .tab-btn.active{background:var(--primary);color:#042129;border-color:var(--primary)}
+
+    .construction-card{background:#111a1d;border:2px solid #f5a822;border-radius:16px;overflow:hidden;position:relative}
+    .construction-stripe{height:12px;background:repeating-linear-gradient(45deg,#f5a822,#f5a822 12px,#16181b 12px,#16181b 24px)}
+
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;max-width:1050px;margin:auto}
+    .game-card{background:var(--card);border:1.5px solid rgba(215,245,255,.12);border-radius:16px;overflow:hidden;display:flex;flex-direction:column;transition:transform .2s}
+    .game-card:hover{--lift:-3px}
+    .preview{height:120px;background:#091d2d;display:flex;align-items:center;justify-content:center;font-size:38px;position:relative}
+    .preview img{width:100%;height:100%;object-fit:cover}
+    .fav-star{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.6);border:0;color:#fff;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:12px}
+    .content{padding:12px;display:flex;flex-direction:column;flex-grow:1}
+    .play-btn{width:100%;padding:9px 0;background:var(--primary);color:#032128;font-weight:900;border-radius:9px;cursor:pointer;border:0;text-align:center;text-decoration:none;display:block;font-size:12px}
+
+    /* RADIO RÉTRACTABLE (BOUTON FLOTTANT + PANNEAU DÉROULANT) */
+    .radio-fab{position:fixed;bottom:14px;right:14px;background:var(--primary);color:#032924;border:0;border-radius:50px;padding:10px 16px;font-weight:900;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.5);z-index:900;display:flex;align-items:center;gap:6px;font-size:12px}
+    .radio-panel{position:fixed;bottom:65px;right:14px;width:min(320px,calc(100vw - 28px));background:rgba(11,28,44,.96);border:1.5px solid var(--primary);border-radius:16px;padding:14px;backdrop-filter:blur(10px);box-shadow:0 12px 30px rgba(0,0,0,.8);display:none;flex-direction:column;gap:8px;z-index:900}
+    .seek-slider{width:100%;accent-color:var(--primary);cursor:pointer;margin:4px 0}
+    .time-readout{display:flex;justify-content:space-between;font-size:10px;color:#8ab2cc}
+
+    #confetti-canvas{position:fixed;inset:0;pointer-events:none;z-index:9999}
+    .modal{position:fixed;inset:0;background:rgba(2,6,10,.95);z-index:100;display:none;align-items:center;justify-content:center;padding:16px}
+    .modal.active{display:flex}
+    .modal-box{background:#0e2235;border:1.5px solid var(--primary);border-radius:18px;padding:18px;max-width:420px;width:100%}
+    .maintenance-screen{position:fixed;inset:0;background:radial-gradient(circle at center,#112a42,#06101a);z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px}
+    .maintenance-box{background:#0e2235;border:2px solid var(--primary);padding:24px;border-radius:20px;max-width:420px}
+
+
+    /* Refonte visuelle : profondeur 3D légère, reflets holographiques et fond discret. */
+    body{position:relative;isolation:isolate;background-image:radial-gradient(ellipse at 12% 2%,rgba(34,211,238,.11),transparent 35%),radial-gradient(ellipse at 92% 20%,rgba(59,130,246,.10),transparent 32%),linear-gradient(180deg,rgba(255,255,255,.015),transparent 38%)}
+    body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.18;background-image:linear-gradient(rgba(95,255,246,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(95,255,246,.10) 1px,transparent 1px);background-size:46px 46px;mask-image:linear-gradient(to bottom,black,transparent 72%)}
+    header{position:relative;max-width:1050px;margin:0 auto 8px;padding:18px 14px 20px;border:1px solid rgba(95,255,246,.16);border-radius:22px;background:linear-gradient(135deg,rgba(12,33,50,.88),rgba(7,20,33,.55));box-shadow:0 14px 42px rgba(0,0,0,.18),inset 0 1px rgba(255,255,255,.07);overflow:hidden}
+    header::after{content:"";position:absolute;inset:-80% -30%;pointer-events:none;background:linear-gradient(115deg,transparent 44%,rgba(95,255,246,.055) 50%,transparent 56%);transform:translateX(-35%);animation:headerShimmer 12s ease-in-out infinite}
+    @keyframes headerShimmer{0%,65%,100%{transform:translateX(-35%)}80%{transform:translateX(35%)}}
+    .profile-card-container{perspective:1400px;transform-style:preserve-3d}
+    .profile-card{position:relative;overflow:hidden;box-shadow:0 18px 38px rgba(0,0,0,.23),inset 0 1px rgba(255,255,255,.075)}
+    .profile-card::before{content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;background:radial-gradient(circle at var(--shine-x,50%) var(--shine-y,50%),rgba(95,255,246,.16),transparent 52%);opacity:.8}
+    .profile-card>*{position:relative;transform:translateZ(12px)}
+    .grid{perspective:1300px;perspective-origin:50% 20%}
+    .game-card{position:relative;isolation:isolate;transform:perspective(900px) rotateX(var(--tilt-x,0deg)) rotateY(var(--tilt-y,0deg)) translateY(var(--lift,0px));transform-style:preserve-3d;border-color:rgba(95,255,246,.20);background:linear-gradient(145deg,rgba(19,48,69,.97),rgba(7,22,36,.98));box-shadow:0 9px 22px rgba(0,0,0,.18),inset 0 1px rgba(255,255,255,.06);transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease}
+    .game-card::before{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;border-radius:inherit;background:radial-gradient(circle at var(--shine-x,50%) var(--shine-y,50%),rgba(95,255,246,.17),transparent 44%);opacity:0;transition:opacity .22s ease}
+    .game-card::after{content:"";position:absolute;left:10%;right:10%;top:0;height:1px;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(95,255,246,.8),transparent);opacity:.45}
+    .game-card:hover{--lift:-5px;border-color:rgba(95,255,246,.64);box-shadow:0 24px 46px rgba(0,0,0,.35),0 0 26px rgba(95,255,246,.075),inset 0 1px rgba(255,255,255,.10)}
+    .game-card:hover::before{opacity:1}
+    .preview{overflow:hidden;background:radial-gradient(ellipse at 50% 15%,rgba(95,255,246,.13),transparent 58%),#091d2d;transform:translateZ(18px)}
+    .preview img{transition:transform .5s cubic-bezier(.2,.75,.25,1),filter .3s ease;filter:saturate(1.07) contrast(1.02)}
+    .game-card:hover .preview img{transform:scale(1.055);filter:saturate(1.2) contrast(1.06)}
+    .content{position:relative;transform:translateZ(10px)}
+    .game-card .play-btn{box-shadow:0 5px 16px rgba(95,255,246,.10);transition:transform .18s ease,filter .18s ease,box-shadow .18s ease}
+    .game-card .play-btn:hover{transform:translateY(-2px);filter:brightness(1.06);box-shadow:0 8px 22px rgba(95,255,246,.22)}
+    .category-tabs{scrollbar-width:thin;scrollbar-color:rgba(95,255,246,.4) transparent}
+    .tab-btn,.btn-action,.radio-fab{transition:transform .18s ease,filter .18s ease,box-shadow .18s ease}
+    .tab-btn:hover,.btn-action:hover,.radio-fab:hover{transform:translateY(-2px);filter:brightness(1.07)}
+    .modal-box{box-shadow:0 24px 80px rgba(0,0,0,.45),inset 0 1px rgba(255,255,255,.08);backdrop-filter:blur(16px)}
+    @media (hover:hover) and (pointer:fine){.game-card{will-change:transform}.game-card:hover{z-index:2}}
+    @media(max-width:600px){body{padding:10px;padding-bottom:76px}header{border-radius:18px;padding:15px 10px 17px}.grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:11px}.preview{height:132px}}
+    @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
+    body.mode-eco::before,body.mode-eco header::after{display:none!important}
+    body.mode-eco .game-card{transform:none!important;will-change:auto!important}
+
+  </style>
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+  <canvas id="confetti-canvas"></canvas>
+
+  <div class="maintenance-screen" id="maintenance-overlay">
+    <div class="maintenance-box">
+      <div style="font-size:42px;margin-bottom:8px">🚧</div>
+      <h2 style="color:var(--primary);margin:0 0 6px">Plateforme en Travaux</h2>
+      <p id="m-text" style="color:#a3c3d9;font-size:12px;margin-bottom:10px"></p>
+      <div style="background:#06111a;padding:8px;border-radius:10px;border:1px dashed #23c4a2">
+        <span style="font-size:11px;color:#7e9eb4">Durée estimée :</span>
+        <h3 id="m-time" style="color:var(--gold);margin:2px 0 0"></h3>
+      </div>
+      <div style="margin-top:12px">
+        <input type="text" id="bypass-input" placeholder="Clé testeur..." style="padding:6px;border-radius:6px;background:#050d15;color:#fff;border:1px solid #2f597e;font-size:11px">
+        <button onclick="testBypassKey()" style="padding:6px 10px;border-radius:6px;background:var(--primary);color:#032924;font-weight:bold;border:0;cursor:pointer">Accéder</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="event-bar" id="ev-bar"><span>⚡</span> <span id="ev-text">Événement Actif</span></div>
+  <div class="announcement-bar" id="ann-bar"><span>📢</span> <span id="ann-text"></span></div>
+
+  <header>
+    <div id="portal-logo-box"></div>
+    <h1 id="portal-title">PORTAIL ARCADE 3D</h1>
+    <p>Des jeux instantanés avec niveaux, progression et multijoueur</p>
+  </header>
+
+  <!-- DÉFI DE LA SEMAINE -->
+  <div class="weekly-box" id="weekly-box" style="display:none">
+    <div>
+      <span style="font-size:10px;color:#c084fc;font-weight:900">🏆 DÉFI DE LA SEMAINE</span>
+      <h4 style="margin:2px 0;font-size:13px" id="wk-desc">Atteignez le score cible</h4>
+    </div>
+    <span style="background:#7e22ce;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:900" id="wk-reward">+300 XP</span>
+  </div>
+
+  <!-- CARTE DU JOUEUR (TILT 3D) -->
+  <div class="profile-card-container">
+    <div class="profile-card" id="profile-box">
+      <div>
+        <span class="level-badge" id="player-level">Niveau 1</span>
+        <h3 style="margin:4px 0 0;color:#fff" id="player-name">Joueur</h3>
+        <div style="font-size:11px;color:#7e9eb4" id="player-time">Temps : 0 min</div>
+        <div class="xp-bar"><div class="xp-fill" id="xp-fill"></div></div>
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        <input type="text" id="pseudo-input" style="padding:6px;border-radius:8px;border:1px solid #2f597e;background:#06101a;color:#fff;font-size:11px;width:100px" placeholder="Pseudo">
+        <button onclick="savePseudo()" style="padding:6px 10px;border-radius:8px;border:0;background:var(--secondary);color:#032924;font-weight:bold;cursor:pointer">OK</button>
+        <button onclick="openModal('pass-modal')" style="padding:6px 8px;border-radius:8px;border:0;background:#9333ea;color:#fff;font-weight:bold;cursor:pointer">🎖️ Pass</button>
+        <button onclick="openModal('frames-modal')" style="padding:6px 8px;border-radius:8px;border:0;background:#f5a822;color:#331d04;font-weight:bold;cursor:pointer">🎨 Cadre</button>
+        <button onclick="openTransferModal()" style="padding:6px 8px;border-radius:8px;border:0;background:#0284c7;color:#fff;font-weight:bold;cursor:pointer">🔑 Clé</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- REPRENDRE SA PARTIE -->
+  <div class="resume-card" id="resume-box">
+    <div>
+      <span style="font-size:10px;color:var(--primary);font-weight:900">⚡ REPRENDRE</span>
+      <h4 style="margin:2px 0 0;font-size:13px" id="resume-title">Dernier jeu</h4>
+    </div>
+    <a href="#" id="resume-btn" class="play-btn" style="width:auto;padding:6px 14px">LANCER</a>
+  </div>
+
+  <!-- ACTIONS -->
+  <div class="action-row">
+    <div style="display:flex;gap:5px;flex-wrap:wrap">
+      <button class="btn-action" style="background:#ffd866;color:#331d04" onclick="openModal('wheel-modal')">🎡 Roue du Jour</button>
+      <button class="btn-action" style="background:var(--primary);color:#032924" onclick="playRandomGame()">🎲 Aléatoire</button>
+      <button class="btn-action" style="background:#1e5b87;color:#fff" onclick="openModal('promo-modal')">🎁 Code</button>
+    </div>
+    <div style="display:flex;gap:5px;align-items:center">
+      <button class="btn-action" style="background:#1e293b;color:#cbd5e1" id="eco-btn" onclick="toggleEcoMode()">🌱 Éco : OFF</button>
+      <select onchange="changeTheme(this.value)" style="padding:6px;border-radius:8px;background:#0a1a29;color:#fff;border:1px solid #1f4263;font-size:11px">
+        <option value="">Thème : Cyan</option>
+        <option value="theme-synthwave">Synthwave</option>
+        <option value="theme-matrix">Matrix</option>
+        <option value="theme-gold">Gold</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- ONGLETS -->
+  <div class="category-tabs">
+    <button class="tab-btn active" onclick="filterCat('Tous')">Tous</button>
+    <button class="tab-btn" onclick="filterCat('Action')">Action</button>
+    <button class="tab-btn" onclick="filterCat('Course')">Course</button>
+    <button class="tab-btn" onclick="filterCat('Multijoueur')">Multijoueur</button>
+    <button class="tab-btn" onclick="filterCat('Favoris')">⭐ Favoris</button>
+    <button class="tab-btn" onclick="filterCat('Classement')">🏆 Classements</button>
+    <button class="tab-btn" onclick="filterCat('Chantier')">🚧 Chantiers (À venir)</button>
+  </div>
+
+  <div class="grid" id="games-grid"></div>
+
+  <!-- BOUTON RADIO FLOTTANT -->
+  <button class="radio-fab" onclick="toggleRadioDrawer()">📻 Radio <span id="radio-indicator">▶</span></button>
+
+  <!-- PANNEAU RADIO RÉTRACTABLE AVEC TIMELINE INTERACTIVE -->
+  <div class="radio-panel" id="radio-drawer">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span style="font-weight:900;color:var(--primary);font-size:13px">📻 Jukebox Arcade</span>
+      <button onclick="toggleRadioDrawer()" style="background:none;border:0;color:#fff;cursor:pointer">✕</button>
+    </div>
+    <div style="overflow:hidden">
+      <div style="font-size:12px;font-weight:bold" id="jk-title">Aucun morceau</div>
+      <div style="font-size:10px;color:#7e9eb4" id="jk-artist">Sélectionnez une piste</div>
+    </div>
+    <input type="range" class="seek-slider" id="seek-slider" min="0" max="100" value="0" oninput="seekTrack(this.value)">
+    <div class="time-readout">
+      <span id="current-time">00:00</span>
+      <span id="duration-time">00:00</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+      <select id="jk-select" onchange="selectTrack(this.value)" style="padding:4px;border-radius:6px;background:#050f18;color:#fff;border:1px solid #1c3c58;font-size:10px;max-width:130px">
+        <option value="">Choisir titre...</option>
+      </select>
+      <div style="display:flex;gap:4px">
+        <button onclick="prevTrack()" style="background:none;border:0;color:#fff;cursor:pointer">⏮️</button>
+        <button id="jk-play-btn" onclick="togglePlay()" style="background:var(--primary);color:#032128;border:0;border-radius:50%;width:28px;height:28px;font-weight:bold;cursor:pointer">▶</button>
+        <button onclick="nextTrack()" style="background:none;border:0;color:#fff;cursor:pointer">⏭️</button>
+      </div>
+      <input type="range" min="0" max="1" step="0.05" value="0.7" oninput="setVolume(this.value)" style="width:50px;accent-color:var(--primary)">
+    </div>
+  </div>
+  <audio id="audio-player"></audio>
+
+  <!-- CLÉ DE TRANSFERT -->
+  <div class="modal" id="transfer-modal">
+    <div class="modal-box">
+      <h3>🔑 Clé de Transfert de Compte</h3>
+      <p style="font-size:11px;color:#8eb1c7">Transférez votre progression d'un appareil à un autre ou après changement de connexion Wi-Fi.</p>
+      <div style="background:#050f18;padding:10px;border-radius:8px;margin-bottom:10px">
+        <span style="font-size:10px;color:#7e9eb4">Ma clé unique actuelle :</span>
+        <div id="transfer-key-display" style="font-family:monospace;font-weight:bold;color:var(--primary);font-size:clamp(12px,3.5vw,15px);margin:4px 0;overflow-wrap:anywhere">Génération...</div>
+        <div id="transfer-key-status" style="font-size:10px;color:#8eb1c7;margin:4px 0">Clé valable 24 heures, à utiliser une seule fois.</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="play-btn" style="padding:6px;font-size:11px;flex:1" onclick="generateNewKey()">Générer une nouvelle clé</button>
+          <button class="play-btn" style="padding:6px;font-size:11px;flex:1;background:#1e5b87;color:#fff" onclick="copyTransferKey()">Copier</button>
+        </div>
+      </div>
+      <div>
+        <span style="font-size:10px;color:#7e9eb4">Récupérer un compte existant avec une clé :</span>
+        <div style="display:flex;gap:4px;margin-top:4px">
+          <input type="text" id="claim-key-input" placeholder="ARCADE-32-CARACTÈRES" style="padding:6px;border-radius:6px;background:#06101a;color:#fff;border:1px solid #1c3c58;font-size:11px;flex:1">
+          <button class="play-btn" style="width:auto;padding:6px 12px;font-size:11px" onclick="claimKey()">Valider</button>
+        </div>
+      </div>
+      <button onclick="closeModal('transfer-modal')" style="width:100%;margin-top:12px;background:none;border:1px solid #1c3c58;color:#7e9eb4;padding:6px;border-radius:6px">Fermer</button>
+    </div>
+  </div>
+
+  <!-- MODALES ROUE, PASS, PROMO, CADRE -->
+  <div class="modal" id="wheel-modal">
+    <div class="modal-box" style="text-align:center">
+      <h2>🎡 Roue de la Fortune</h2>
+      <canvas id="wheel-canvas" width="200" height="200" style="margin:8px auto;display:block"></canvas>
+      <button class="btn-action" style="background:var(--primary);color:#032924;width:100%;padding:9px" id="spin-btn" onclick="spinWheel()">TOURNER</button>
+      <button onclick="closeModal('wheel-modal')" style="margin-top:8px;background:none;border:0;color:#7e9eb4;cursor:pointer">Fermer</button>
+    </div>
+  </div>
+
+  <div class="modal" id="pass-modal">
+    <div class="modal-box">
+      <h2>🎖️ Pass de Saison (Gratuit)</h2>
+      <div id="pass-tiers" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;margin:10px 0"></div>
+      <button onclick="closeModal('pass-modal')" style="width:100%;padding:6px;background:none;border:1px solid #1c3c58;color:#7e9eb4;border-radius:6px">Fermer</button>
+    </div>
+  </div>
+
+  <div class="modal" id="promo-modal">
+    <div class="modal-box" style="text-align:center">
+      <h2>🎁 Code Cadeau</h2>
+      <input type="text" id="promo-input" placeholder="Ex: AUDI2026" style="padding:8px;width:100%;border-radius:6px;border:1px solid #2f597e;background:#050f18;color:#fff;font-weight:bold;text-transform:uppercase;margin:8px 0;box-sizing:border-box">
+      <button class="btn-action" style="background:var(--secondary);color:#032924;width:100%;padding:8px" onclick="redeemCode()">Valider</button>
+      <button onclick="closeModal('promo-modal')" style="margin-top:8px;background:none;border:0;color:#7e9eb4;cursor:pointer">Fermer</button>
+    </div>
+  </div>
+
+  <div class="modal" id="frames-modal">
+    <div class="modal-box" style="text-align:center">
+      <h2>🎨 Cadre Lumineux</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0">
+        <button class="btn-action" style="border:2px solid #5ffff6;background:#081827" onclick="setFrame('neon')">Cyan Néon</button>
+        <button class="btn-action" style="border:2px solid #ffd866;background:#181507" onclick="setFrame('gold')">Flammes Or</button>
+        <button class="btn-action" style="border:2px solid #ff4757;background:#18080a" onclick="setFrame('flame')">Rubis Feu</button>
+        <button class="btn-action" style="border:2px solid #23c4a2;background:#051410" onclick="setFrame('')">Standard</button>
+      </div>
+      <button onclick="closeModal('frames-modal')" style="width:100%;padding:6px;background:none;border:1px solid #1c3c58;color:#7e9eb4;border-radius:6px">Fermer</button>
+    </div>
+  </div>
+
+  <footer style="text-align:center;margin-top:35px;font-size:11.5px;color:#527287">
+    <p>© 2026 Portail Arcade — <button onclick="toggleFullscreen()" style="background:none;border:0;color:var(--primary);cursor:pointer">⛶ Plein Écran</button> — <a href="/admin.html" style="color:#527287;text-decoration:none">Modération</a></p>
+  </footer>
+
+  <script>
+    const socket = io();
+    let gamesList = [];
+    let playlist = [];
+    let currentTrackIdx = -1;
+    let activeCategory = 'Tous';
+    let currentPlayer = null;
+    const playerAudio = document.getElementById('audio-player');
+
+    function formatTime(s) {
+      if (isNaN(s)) return "00:00";
+      const m = Math.floor(s / 60);
+      const sec = Math.floor(s % 60);
+      return (m < 10 ? "0" : "") + m + ":" + (sec < 10 ? "0" : "") + sec;
+    }
+
+    playerAudio.ontimeupdate = () => {
+      if (!isNaN(playerAudio.duration)) {
+        const pct = (playerAudio.currentTime / playerAudio.duration) * 100;
+        document.getElementById('seek-slider').value = pct;
+        document.getElementById('current-time').textContent = formatTime(playerAudio.currentTime);
+        document.getElementById('duration-time').textContent = formatTime(playerAudio.duration);
+      }
+    };
+
+    function seekTrack(pct) {
+      if (!isNaN(playerAudio.duration)) {
+        playerAudio.currentTime = (pct / 100) * playerAudio.duration;
+      }
+    }
+
+    function toggleRadioDrawer(){
+      const el = document.getElementById('radio-drawer');
+      el.style.display = (el.style.display === 'flex') ? 'none' : 'flex';
+    }
+
+    function renderPlaylistSelect() {
+      const sel = document.getElementById('jk-select');
+      sel.innerHTML = '<option value="">Choisir titre...</option>';
+      playlist.forEach((t, i) => {
+        const opt = document.createElement('option');
+        opt.value = i; opt.textContent = `${t.title} - ${t.artist}`;
+        sel.appendChild(opt);
+      });
+    }
+
+    function selectTrack(idx) {
+      if (idx === "") return;
+      currentTrackIdx = Number(idx);
+      playCurrentTrack();
+    }
+
+    function playCurrentTrack() {
+      const track = playlist[currentTrackIdx];
+      if (!track) return;
+      document.getElementById('jk-title').textContent = track.title;
+      document.getElementById('jk-artist').textContent = track.artist;
+      document.getElementById('jk-select').value = currentTrackIdx;
+      playerAudio.src = track.url;
+      playerAudio.play().catch(()=>{});
+      document.getElementById('jk-play-btn').textContent = "❚❚";
+      document.getElementById('radio-indicator').textContent = "❚❚";
+    }
+
+    function togglePlay() {
+      if (currentTrackIdx === -1 && playlist.length > 0) currentTrackIdx = 0;
+      if (playerAudio.paused) {
+        playCurrentTrack();
+      } else {
+        playerAudio.pause();
+        document.getElementById('jk-play-btn').textContent = "▶";
+        document.getElementById('radio-indicator').textContent = "▶";
+      }
+    }
+
+    function nextTrack() {
+      if (!playlist.length) return;
+      currentTrackIdx = (currentTrackIdx + 1) % playlist.length;
+      playCurrentTrack();
+    }
+
+    function prevTrack() {
+      if (!playlist.length) return;
+      currentTrackIdx = (currentTrackIdx - 1 + playlist.length) % playlist.length;
+      playCurrentTrack();
+    }
+
+    function setVolume(v) { playerAudio.volume = Number(v); }
+    playerAudio.onended = () => nextTrack();
+
+    const pCard = document.getElementById('profile-box');
+    pCard.addEventListener('mousemove', (e) => {
+      const r = pCard.getBoundingClientRect();
+      const x = e.clientX - r.left - (r.width / 2);
+      const y = e.clientY - r.top - (r.height / 2);
+      pCard.style.setProperty('--shine-x', `${((e.clientX-r.left)/r.width)*100}%`);
+      pCard.style.setProperty('--shine-y', `${((e.clientY-r.top)/r.height)*100}%`);
+      pCard.style.transform = `rotateY(${x / 24}deg) rotateX(${-y / 20}deg)`;
+    });
+    pCard.addEventListener('mouseleave', () => { pCard.style.transform = 'rotateY(0deg) rotateX(0deg)'; });
+
+    let ecoMode = false;
+    function toggleEcoMode(){
+      ecoMode = !ecoMode;
+      document.body.classList.toggle('mode-eco', ecoMode);
+      document.getElementById('eco-btn').textContent = ecoMode ? "🌱 Éco : ON" : "🌱 Éco : OFF";
+    }
+
+    async function requestTransferKey(force = false){
+      const display = document.getElementById('transfer-key-display');
+      const status = document.getElementById('transfer-key-status');
+      display.textContent = 'Génération…';
+      status.textContent = 'La clé sera valable 24 heures et utilisable une seule fois.';
+      try {
+        const res = await fetch('/api/player/transfer-key/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ force })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.message || 'Impossible de générer la clé. Vérifie que tu as enregistré un pseudo.');
+        display.textContent = data.transferKey;
+        status.textContent = 'Clé valable 24 h. Utilise-la sur le nouvel appareil, puis conserve-la privée.';
+      } catch (error) {
+        display.textContent = 'Clé indisponible';
+        status.textContent = error.message || 'Serveur indisponible. Réessaie dans quelques secondes.';
+      }
+    }
+
+    async function openTransferModal(){
+      openModal('transfer-modal');
+      await requestTransferKey();
+    }
+
+    async function generateNewKey(){
+      if (!confirm('Créer une nouvelle clé invalidera la précédente. Continuer ?')) return;
+      await requestTransferKey(true);
+    }
+
+    async function copyTransferKey(){
+      const key = document.getElementById('transfer-key-display').textContent.trim();
+      if (!/^ARCADE-[A-F0-9]{32}$/.test(key)) return alert('Génère d’abord une clé valide.');
+      try {
+        await navigator.clipboard.writeText(key);
+        document.getElementById('transfer-key-status').textContent = 'Clé copiée. Ne la partage qu’avec ton propre nouvel appareil.';
+      } catch (_) {
+        alert('Copie automatique impossible : sélectionne la clé puis copie-la manuellement.');
+      }
+    }
+
+    async function claimKey(){
+      const input = document.getElementById('claim-key-input');
+      const k = input.value.trim();
+      if (!k) return;
+      try {
+        const res = await fetch('/api/player/transfer-key/claim', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transferKey: k })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) return alert(data.message || 'Impossible de transférer ce compte.');
+        alert('Compte transféré avec succès sur cet appareil !');
+        input.value = '';
+        location.reload();
+      } catch (_) {
+        alert('Serveur inaccessible. Vérifie ta connexion puis réessaie.');
+      }
+    }
+
+    socket.on('broadcast:alert', (data) => alert("🚨 ALERTE DU SERVEUR :\n" + data.message));
+    socket.on('games:updated', (games) => { gamesList = games; renderGames(); });
+    socket.on('playlist:updated', (tracks) => { playlist = tracks; renderPlaylistSelect(); });
+
+    socket.on('portalSettings:updated', (s) => {
+      document.getElementById('portal-title').textContent = s.title;
+      document.getElementById('portal-title').style.color = s.neonColor;
+      const logoBox = document.getElementById('portal-logo-box');
+      if (s.logoUrl) logoBox.innerHTML = `<img src="${s.logoUrl}" class="portal-logo-img">`;
+      else logoBox.innerHTML = '';
+    });
+
+    socket.on('maintenance:updated', (m) => {
+      const el = document.getElementById('maintenance-overlay');
+      if (m.active) {
+        document.getElementById('m-text').textContent = m.message;
+        document.getElementById('m-time').textContent = m.estimatedDuration;
+        el.style.display = 'flex';
+      } else el.style.display = 'none';
+    });
+
+    socket.on('announcement:updated', (ann) => {
+      const bar = document.getElementById('ann-bar');
+      if (ann.active) {
+        bar.style.display = 'flex';
+        document.getElementById('ann-text').textContent = ann.text;
+      } else bar.style.display = 'none';
+    });
+
+    socket.on('event:updated', (ev) => {
+      const bar = document.getElementById('ev-bar');
+      if (ev.active) {
+        bar.style.display = 'flex';
+        document.getElementById('ev-text').textContent = ev.name + ` (XP x${ev.factor}) !`;
+      } else bar.style.display = 'none';
+    });
+
+    socket.on('player:warning', (data) => alert("⚠️ AVERTISSEMENT MODÉRATEUR :\n" + data.message));
+    socket.on('banned', (data) => {
+      document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#050a10;color:#ff6b6b;font-family:sans-serif;text-align:center;padding:20px"><h1>🚫 ACCÈS BANNI</h1><p>${data.reason}</p></div>`;
+    });
+
+    function launchConfetti() {
+      const canvas = document.getElementById('confetti-canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+      const particles = Array.from({ length: 45 }, () => ({
+        x: canvas.width / 2, y: canvas.height / 2,
+        vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 1.1) * 10,
+        color: ['#5ffff6', '#ffd866', '#ff4757', '#23c4a2'][Math.floor(Math.random() * 4)],
+        size: 5 + Math.random() * 4
+      }));
+      let frames = 0;
+      function anim() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.25; ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, p.size, p.size); });
+        if (++frames < 80) requestAnimationFrame(anim);
+        else ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+      anim();
+    }
+
+    async function init(){
+      try {
+        const cRes = await fetch('/api/config/portal');
+        const cData = await cRes.json();
+
+        if (cData.maintenance && cData.maintenance.active && !cData.maintenance.isBypassed) {
+          document.getElementById('m-text').textContent = cData.maintenance.message;
+          document.getElementById('m-time').textContent = cData.maintenance.estimatedDuration;
+          document.getElementById('maintenance-overlay').style.display = 'flex';
+          return;
+        }
+
+        if (cData.portalSettings) {
+          document.getElementById('portal-title').textContent = cData.portalSettings.title;
+          document.getElementById('portal-title').style.color = cData.portalSettings.neonColor;
+          if (cData.portalSettings.logoUrl) {
+            document.getElementById('portal-logo-box').innerHTML = `<img src="${cData.portalSettings.logoUrl}" class="portal-logo-img">`;
+          }
+        }
+
+        if (cData.announcement && cData.announcement.active) {
+          document.getElementById('ann-bar').style.display = 'flex';
+          document.getElementById('ann-text').textContent = cData.announcement.text;
+        }
+
+        if (cData.eventMultiplier && cData.eventMultiplier.active) {
+          document.getElementById('ev-bar').style.display = 'flex';
+          document.getElementById('ev-text').textContent = cData.eventMultiplier.name + ` (XP x${cData.eventMultiplier.factor}) !`;
+        }
+
+        if (cData.weeklyChallenge && cData.weeklyChallenge.active) {
+          document.getElementById('weekly-box').style.display = 'flex';
+          document.getElementById('wk-desc').textContent = `${cData.weeklyChallenge.title} : Score à battre : ${cData.weeklyChallenge.targetScore} pts`;
+          document.getElementById('wk-reward').textContent = `+${cData.weeklyChallenge.rewardXp} XP`;
+        }
+
+        playlist = cData.playlist || [];
+        renderPlaylistSelect();
+
+        const pRes = await fetch('/api/player/me');
+        const pData = await pRes.json();
+
+        if (pData.player) {
+          currentPlayer = pData.player;
+          document.getElementById('player-name').textContent = currentPlayer.username;
+          document.getElementById('player-level').textContent = 'Niveau ' + currentPlayer.level;
+          document.getElementById('player-time').textContent = 'Temps : ' + (currentPlayer.totalPlaytimeMinutes || 0) + ' min';
+          document.getElementById('xp-fill').style.width = (currentPlayer.xp % 100) + '%';
+          document.getElementById('pseudo-input').value = currentPlayer.username;
+
+          if (currentPlayer.frame) {
+            document.getElementById('profile-box').className = 'profile-card frame-' + currentPlayer.frame;
+          }
+
+          if (currentPlayer.lastPlayedGame) {
+            document.getElementById('resume-box').style.display = 'flex';
+            document.getElementById('resume-title').textContent = currentPlayer.lastPlayedGame.title;
+            document.getElementById('resume-btn').href = `/play.html?id=${currentPlayer.lastPlayedGame.id}&url=${encodeURIComponent(currentPlayer.lastPlayedGame.url)}&title=${encodeURIComponent(currentPlayer.lastPlayedGame.title)}`;
+          }
+
+          buildPassTiers(currentPlayer.level);
+          socket.emit('player:online', currentPlayer.username);
+        }
+
+        const gRes = await fetch('/api/games');
+        gamesList = await gRes.json();
+        renderGames();
+      } catch(e){}
+    }
+
+    function filterCat(cat){
+      activeCategory = cat;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.textContent.includes(cat)));
+      if (cat === 'Classement') renderLeaderboard();
+      else renderGames();
+    }
+
+    function renderGames(){
+      const grid = document.getElementById('games-grid');
+      grid.innerHTML = '';
+
+      if (activeCategory === 'Chantier') {
+        const upcoming = gamesList.filter(g => g.status === 'upcoming');
+        if (!upcoming.length) return grid.innerHTML = '<p style="grid-column:1/-1;text-align:center;color:#7e9eb4">Aucun chantier en cours.</p>';
+        upcoming.forEach(g => {
+          const card = document.createElement('div');
+          card.className = 'construction-card';
+          card.innerHTML = `
+            <div class="construction-stripe"></div>
+            <div style="padding:14px">
+              <span style="font-size:10px;color:var(--gold);font-weight:900">🚧 CHANTIER EN COURS</span>
+              <h3 style="margin:6px 0">${g.icon} ${g.title}</h3>
+              <p style="font-size:12px;color:#8eaec4;margin-bottom:12px">${g.description}</p>
+              <div style="display:flex;gap:6px">
+                <button onclick="voteGame('${g.id}')" class="play-btn" style="background:#f5a822;color:#331d04;flex:1">🗳️ Voter (${g.votes||0})</button>
+              </div>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+        return;
+      }
+
+      const filtered = gamesList.filter(g => {
+        if (g.status === 'upcoming') return false;
+        if (activeCategory === 'Tous') return true;
+        if (activeCategory === 'Favoris') return currentPlayer && currentPlayer.favorites && currentPlayer.favorites.includes(g.id);
+        return g.category === activeCategory;
+      });
+
+      if (!filtered.length) return grid.innerHTML = '<p style="grid-column:1/-1;text-align:center;color:#7e9eb4">Aucun jeu trouvé.</p>';
+
+      filtered.forEach(g => {
+        const card = document.createElement('div');
+        card.className = 'game-card';
+        const isFav = currentPlayer && currentPlayer.favorites && currentPlayer.favorites.includes(g.id);
+        const visual = g.thumbnail ? `<img src="${g.thumbnail}" alt="${g.title}">` : g.icon;
+        card.innerHTML = `
+          <div class="preview">
+            ${visual}
+            <button class="fav-star" onclick="toggleFav('${g.id}')">${isFav ? '⭐' : '☆'}</button>
+          </div>
+          <div class="content">
+            <span style="font-size:10px;color:var(--primary);font-weight:bold;text-transform:uppercase">${g.category || 'Arcade'}</span>
+            <h3 style="margin:4px 0">${g.title}</h3>
+            <p style="font-size:12px;color:#a3c3d9;margin:0 0 12px;flex-grow:1">${g.description}</p>
+            <a href="/play.html?id=${g.id}&url=${encodeURIComponent(g.url)}&title=${encodeURIComponent(g.title)}" class="play-btn">JOUER</a>
+          </div>
+        `;
+        if (window.matchMedia('(hover:hover) and (pointer:fine)').matches && !document.body.classList.contains('mode-eco')) {
+          card.addEventListener('pointermove', (event) => {
+            const rect = card.getBoundingClientRect();
+            const px = (event.clientX - rect.left) / rect.width;
+            const py = (event.clientY - rect.top) / rect.height;
+            card.style.setProperty('--tilt-y', `${(px - 0.5) * 7}deg`);
+            card.style.setProperty('--tilt-x', `${(0.5 - py) * 5}deg`);
+            card.style.setProperty('--shine-x', `${px * 100}%`);
+            card.style.setProperty('--shine-y', `${py * 100}%`);
+          });
+          card.addEventListener('pointerleave', () => {
+            card.style.setProperty('--tilt-y', '0deg');
+            card.style.setProperty('--tilt-x', '0deg');
+            card.style.setProperty('--shine-x', '50%');
+            card.style.setProperty('--shine-y', '50%');
+          });
+        }
+        grid.appendChild(card);
+      });
+    }
+
+    async function renderLeaderboard(){
+      const grid = document.getElementById('games-grid');
+      const res = await fetch('/api/leaderboards/global');
+      const data = await res.json();
+      grid.innerHTML = `
+        <div style="grid-column:1/-1;background:var(--card);border:1.5px solid var(--primary);border-radius:16px;padding:16px">
+          <h2 style="color:var(--gold);margin:0 0 10px;font-size:17px">🏆 Top 10 Joueurs Mondiaux</h2>
+          ${data.topPlayers.map(p => `
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #14354f;font-size:12.5px">
+              <span><strong>#${p.rank}</strong> ${p.username}</span>
+              <span style="color:var(--primary)">Niv. ${p.level} (${p.playtime} min)</span>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function buildPassTiers(lvl){
+      const box = document.getElementById('pass-tiers');
+      const tiers = [
+        { l: 1, r: "Badge Pionnier" },
+        { l: 3, r: "Cadre : Néon" },
+        { l: 6, r: "Titre : Habitué" },
+        { l: 10, r: "Cadre : Flammes Or" }
+      ];
+      box.innerHTML = tiers.map(t => `
+        <div style="display:flex;justify-content:space-between;padding:5px;border-radius:6px;background:${lvl>=t.l?'#143d32':'#071624'};border:1px solid ${lvl>=t.l?'#23c4a2':'#1b3854'}">
+          <span>Palier ${t.l} (${t.r})</span>
+          <strong>${lvl>=t.l?'DÉBLOQUÉ ✅':'🔒'}</strong>
+        </div>
+      `).join('');
+    }
+
+    function drawWheel() {
+      const c = document.getElementById('wheel-canvas');
+      const ctx = c.getContext('2d');
+      const colors = ['#5ffff6', '#ffd866', '#ff4757', '#23c4a2', '#a855f7'];
+      for (let i = 0; i < 5; i++) {
+        ctx.beginPath(); ctx.fillStyle = colors[i]; ctx.moveTo(100, 100);
+        ctx.arc(100, 100, 95, (i * 2 * Math.PI) / 5, ((i + 1) * 2 * Math.PI) / 5);
+        ctx.fill();
+      }
+    }
+    drawWheel();
+
+    async function spinWheel(){
+      const btn = document.getElementById('spin-btn');
+      btn.disabled = true;
+      const res = await fetch('/api/wheel/spin', { method: 'POST' });
+      const data = await res.json();
+      if (!data.success) alert(data.message);
+      else { launchConfetti(); alert("🎉 Récompense : " + data.reward.text); init(); }
+      btn.disabled = false;
+      closeModal('wheel-modal');
+    }
+
+    async function redeemCode(){
+      const val = document.getElementById('promo-input').value.trim();
+      if (!val) return;
+      const res = await fetch('/api/promocodes/redeem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: val })
+      });
+      const data = await res.json();
+      alert(data.message);
+      if (data.success) { launchConfetti(); init(); closeModal('promo-modal'); }
+    }
+
+    async function setFrame(frame){
+      await fetch('/api/player/set-frame', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ frame })
+      });
+      init();
+      closeModal('frames-modal');
+    }
+
+    function playRandomGame(){
+      const playable = gamesList.filter(g => g.status === 'playable');
+      if (!playable.length) return alert("Aucun jeu disponible !");
+      const rand = playable[Math.floor(Math.random() * playable.length)];
+      location.href = `/play.html?id=${rand.id}&url=${encodeURIComponent(rand.url)}&title=${encodeURIComponent(rand.title)}`;
+    }
+
+    function changeTheme(theme){ document.body.className = theme; }
+
+    async function toggleFav(id){
+      await fetch('/api/games/' + encodeURIComponent(id) + '/favorite', { method: 'POST' });
+      init();
+    }
+
+    async function voteGame(id){
+      await fetch('/api/games/' + encodeURIComponent(id) + '/vote', { method: 'POST' });
+      init();
+    }
+
+    async function savePseudo(){
+      const val = document.getElementById('pseudo-input').value.trim();
+      if (!val) return;
+      const res = await fetch('/api/player/set-pseudo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: val })
+      });
+      const data = await res.json();
+      if (!data.success) alert(data.message);
+      else init();
+    }
+
+    function testBypassKey(){
+      const k = document.getElementById('bypass-input').value.trim();
+      if (!k) return;
+      location.href = '/?bypassKey=' + encodeURIComponent(k);
+    }
+
+    function openModal(id){ document.getElementById(id).classList.add('active'); }
+    function closeModal(id){ document.getElementById(id).classList.remove('active'); }
+
+    function toggleFullscreen(){
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
+      else document.exitFullscreen().catch(()=>{});
+    }
+
+    init();
+  </script>
+</body>
+</html>
